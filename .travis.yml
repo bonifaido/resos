@@ -1,5 +1,8 @@
 language: rust
-rust: nightly
+rust:
+  - stable
+  - beta
+  - nightly
 before_install:
   - sudo apt-get update
   - sudo apt-get install protobuf-compiler
