@@ -3,7 +3,9 @@
 [![Build Status](https://travis-ci.org/bonifaido/rust-mesos.png?branch=master)](https://travis-ci.org/bonifaido/rust-mesos)
 
 Rust library for [Apache Mesos](http://mesos.apache.org).
-It is based on the upcoming Scheduler (and Executor) HTTP API in Mesos 0.24, see: https://github.com/apache/mesos/blob/master/docs/scheduler_http_api.md
+It is based on the upcoming Scheduler and Executor (not yet implemented in this library) HTTP API in Mesos, see:
+  - https://github.com/apache/mesos/blob/master/docs/executor-http-api.md
+  - https://github.com/apache/mesos/blob/master/docs/scheduler_http_api.md
 
 ####*Warning:* This library is in a very early stage, it is not recomended for production and all APIs are subject to change.
 
@@ -16,7 +18,7 @@ Rust Mesos depends on the MesosMasterInfo in Zookeeper to be published in JSON f
 
 ## Building
 
-This project is built using [cargo](http://doc.crates.io) against the latest nightlies.
+This project is always built using [cargo](http://doc.crates.io) against the latest stable, beta, and nightly.
 
 ```bash
 $ cargo build
