@@ -1,5 +1,7 @@
 # rust-mesos
 
+[![Join the chat at https://gitter.im/bonifaido/rust-mesos](https://badges.gitter.im/bonifaido/rust-mesos.svg)](https://gitter.im/bonifaido/rust-mesos?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 [![Build Status](https://travis-ci.org/bonifaido/rust-mesos.png?branch=master)](https://travis-ci.org/bonifaido/rust-mesos)
 
 Rust library for [Apache Mesos](http://mesos.apache.org).
