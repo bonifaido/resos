@@ -7,7 +7,7 @@
 Rust library for [Apache Mesos](http://mesos.apache.org).
 It is based on the upcoming Scheduler and Executor (not yet implemented in this library) HTTP API in Mesos, see:
   - https://github.com/apache/mesos/blob/master/docs/executor-http-api.md
-  - https://github.com/apache/mesos/blob/master/docs/scheduler_http_api.md
+  - https://github.com/apache/mesos/blob/master/docs/scheduler-http-api.md
 
 ####*Warning:* This library is in a very early stage, it is not recomended for production and all APIs are subject to change.
 
