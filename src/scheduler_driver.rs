@@ -1,6 +1,6 @@
 use http_api;
 use http_api::{HttpApi, HttpHandler};
-use master_detector::{MasterDetector, ZkMasterDetector};
+use master_detector::{MasterDetector, SimpleMasterDetector, ZkMasterDetector};
 use proto::{AgentID,
             ExecutorID,
             Filters,
@@ -217,7 +217,7 @@ impl <S> Clone for MesosSchedulerDriver<S> {
 
 struct DriverInternal {
     http_api: HttpApi,
-    master_detector: Arc<MasterDetector + Send + Sync>,
+    master_detector: Box<MasterDetector + Send + Sync>,
     framework: FrameworkInfo,
     status: Status
 }
@@ -246,15 +246,15 @@ impl <S: Scheduler + Sync + Send + 'static> MesosSchedulerDriver<S> {
 
         let http_api = try!(HttpApi::new("/api/v1/scheduler").map_err(Error::HttpApi));
 
-        let master_detector = if master.starts_with("zk://") {
-            try!(ZkMasterDetector::new(&master[5..]).map_err(Error::MasterDetector))
+        let master_detector: Box<MasterDetector + Send + Sync> = if master.starts_with("zk://") {
+            Box::new(try!(ZkMasterDetector::new(&master[5..]).map_err(Error::MasterDetector)))
         } else {
-            panic!("Not supported");
+            Box::new(SimpleMasterDetector::new(master))
         };
 
         let internal = DriverInternal{
             http_api: http_api,
-            master_detector: Arc::new(master_detector),
+            master_detector: master_detector,
             framework: framework,
             status: Status::DRIVER_NOT_STARTED
         };

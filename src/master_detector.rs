@@ -5,7 +5,7 @@ use std::time::Duration;
 static ZK_SESSION_TIMEOUT: u64 = 10000;
 static MASTER_INFO_JSON_LABEL: &'static str = "json.info";
 
-#[derive(RustcDecodable)]
+#[derive(RustcDecodable, Debug)]
 pub struct MasterInfo {
     pid: String
 }
@@ -68,5 +68,22 @@ impl MasterDetector for ZkMasterDetector {
             }
             None => Err("ZkError::NoNode".to_string())
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct SimpleMasterDetector {
+    address: String
+}
+
+impl SimpleMasterDetector {
+    pub fn new(address: &str) -> SimpleMasterDetector {
+        SimpleMasterDetector{address: address.to_string()}
+    }
+}
+
+impl MasterDetector for SimpleMasterDetector {
+    fn get_master(&self) -> Result<MasterInfo, String> {
+        Ok(MasterInfo{pid: self.address.to_string()})
     }
 }
