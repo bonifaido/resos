@@ -185,7 +185,7 @@ message MachineInfo {
     DRAINING = 2;
 
     // In this mode, a machine is not running any tasks and will not offer
-    // any of its resources.  agents on the machine will not be allowed to
+    // any of its resources.  Agents on the machine will not be allowed to
     // register with the master.
     DOWN = 3;
   }
@@ -219,10 +219,14 @@ message FrameworkInfo {
   // failover).
   optional FrameworkID id = 3;
 
-  // The amount of time that the master will wait for the scheduler to
-  // failover before it tears down the framework by killing all its
-  // tasks/executors. This should be non-zero if a framework expects
-  // to reconnect after a failover and not lose its tasks/executors.
+  // The amount of time (in seconds) that the master will wait for the
+  // scheduler to failover before it tears down the framework by
+  // killing all its tasks/executors. This should be non-zero if a
+  // framework expects to reconnect after a failure and not lose its
+  // tasks/executors.
+  //
+  // NOTE: To avoid accidental destruction of tasks, production
+  // frameworks typically set this to a large value (e.g., 1 week).
   optional double failover_timeout = 4 [default = 0.0];
 
   // If set, framework pid, executor pids and status updates are
@@ -254,13 +258,25 @@ message FrameworkInfo {
 
   message Capability {
     enum Type {
+      // This must be the first enum value in this list, to
+      // ensure that if 'type' is not set, the default value
+      // is UNKNOWN. This enables enum values to be added
+      // in a backwards-compatible way. See: MESOS-4997.
+      UNKNOWN = 0;
+
       // Receive offers with revocable resources. See 'Resource'
       // message for details.
       // TODO(vinod): This is currently a no-op.
       REVOCABLE_RESOURCES = 1;
+
+      // Receive the TASK_KILLING TaskState when a task is being
+      // killed by an executor. The executor will examine this
+      // capability to determine whether it can send TASK_KILLING.
+      TASK_KILLING_STATE = 2;
     }
 
-    required Type type = 1;
+    // Enum fields should be optional, see: MESOS-4997.
+    optional Type type = 1;
   }
 
   // This field allows a framework to advertise its set of
@@ -271,6 +287,7 @@ message FrameworkInfo {
   // Labels are free-form key value pairs supplied by the framework
   // scheduler (e.g., to describe additional functionality offered by
   // the framework). These labels are not interpreted by Mesos itself.
+  // Labels should not contain duplicate key-value pairs.
   optional Labels labels = 11;
 }
 
@@ -497,6 +514,14 @@ message Value {
   }
 
   message Scalar {
+    // Scalar values are represented using floating point. To reduce
+    // the chance of unpredictable floating point behavior due to
+    // roundoff error, Mesos only supports three decimal digits of
+    // precision for scalar resource values. That is, floating point
+    // values are converted to a fixed point format that supports
+    // three decimal digits of precision, and then converted back to
+    // floating point on output. Any additional precision in scalar
+    // resource values is discarded (via rounding).
     required double value = 1;
   }
 
@@ -541,13 +566,17 @@ message Attribute {
 
 
 /**
- * Describes a resource on a machine. A resource can take on one of
- * three types: scalar (double), a list of finite and discrete ranges
- * (e.g., [1-10, 20-30]), or a set of items. A resource is described
- * using the standard protocol buffer "union" trick.
+ * Describes a resource on a machine. The `name` field is a string
+ * like "cpus" or "mem" that indicates which kind of resource this is;
+ * the rest of the fields describe the properties of the resource. A
+ * resource can take on one of three types: scalar (double), a list of
+ * finite and discrete ranges (e.g., [1-10, 20-30]), or a set of
+ * items. A resource is described using the standard protocol buffer
+ * "union" trick.
  *
- * TODO(benh): Add better support for "expected" resources (e.g.,
- * cpus, memory, disk, network).
+ * Note that "disk" and "mem" resources are scalar values expressed in
+ * megabytes. Fractional "cpus" values are allowed (e.g., "0.5"),
+ * which correspond to partial shares of a CPU.
  */
 message Resource {
   required string name = 1;
@@ -569,17 +598,21 @@ message Resource {
     // NOTE: We currently do not allow frameworks with role "*" to
     // make dynamic reservations.
 
-    // This field indicates the principal of the framework or operator
+    // Indicates the principal, if any, of the framework or operator
     // that reserved this resource. If reserved by a framework, the
     // field should match the `FrameworkInfo.principal`. It is used in
     // conjunction with the `UnreserveResources` ACL to determine
     // whether the entity attempting to unreserve this resource is
     // permitted to do so.
-    //
-    // NOTE: Currently, a principal is required in order to reserve
-    // resources, so the master disallows any reserve operations
-    // without a principal. This constraint will be removed in 0.28.
     optional string principal = 1;
+
+    // Labels are free-form key value pairs that can be used to
+    // associate arbitrary metadata with a reserved resource.  For
+    // example, frameworks can use labels to identify the intended
+    // purpose for a portion of the resources the framework has
+    // reserved at a given agent. Labels should not contain duplicate
+    // key-value pairs.
+    optional Labels labels = 2;
   }
 
   // If this is set, this resource was dynamically reserved by an
@@ -715,6 +748,99 @@ message TrafficControlStatistics {
 }
 
 
+message IpStatistics {
+  optional int64 Forwarding =  1;
+  optional int64 DefaultTTL =  2;
+  optional int64 InReceives =  3;
+  optional int64 InHdrErrors =  4;
+  optional int64 InAddrErrors =  5;
+  optional int64 ForwDatagrams =  6;
+  optional int64 InUnknownProtos = 7;
+  optional int64 InDiscards =  8;
+  optional int64 InDelivers  = 9;
+  optional int64 OutRequests = 10;
+  optional int64 OutDiscards = 11;
+  optional int64 OutNoRoutes = 12;
+  optional int64 ReasmTimeout = 13;
+  optional int64 ReasmReqds = 14;
+  optional int64 ReasmOKs = 15;
+  optional int64 ReasmFails = 16;
+  optional int64 FragOKs = 17;
+  optional int64 FragFails = 18;
+  optional int64 FragCreates = 19;
+}
+
+
+message IcmpStatistics {
+  optional int64 InMsgs = 1;
+  optional int64 InErrors =  2;
+  optional int64 InCsumErrors = 3;
+  optional int64 InDestUnreachs =  4;
+  optional int64 InTimeExcds = 5;
+  optional int64 InParmProbs =  6;
+  optional int64 InSrcQuenchs = 7;
+  optional int64 InRedirects = 8;
+  optional int64 InEchos = 9;
+  optional int64 InEchoReps = 10;
+  optional int64 InTimestamps = 11;
+  optional int64 InTimestampReps = 12;
+  optional int64 InAddrMasks = 13;
+  optional int64 InAddrMaskReps = 14;
+  optional int64 OutMsgs = 15;
+  optional int64 OutErrors = 16;
+  optional int64 OutDestUnreachs = 17;
+  optional int64 OutTimeExcds = 18;
+  optional int64 OutParmProbs = 19;
+  optional int64 OutSrcQuenchs = 20;
+  optional int64 OutRedirects = 21;
+  optional int64 OutEchos = 22;
+  optional int64 OutEchoReps = 23;
+  optional int64 OutTimestamps = 24;
+  optional int64 OutTimestampReps = 25;
+  optional int64 OutAddrMasks = 26;
+  optional int64 OutAddrMaskReps = 27;
+}
+
+
+message TcpStatistics {
+  optional int64 RtoAlgorithm = 1;
+  optional int64 RtoMin = 2;
+  optional int64 RtoMax = 3;
+  optional int64 MaxConn = 4;
+  optional int64 ActiveOpens = 5;
+  optional int64 PassiveOpens = 6;
+  optional int64 AttemptFails = 7;
+  optional int64 EstabResets = 8;
+  optional int64 CurrEstab = 9;
+  optional int64 InSegs = 10;
+  optional int64 OutSegs = 11;
+  optional int64 RetransSegs = 12;
+  optional int64 InErrs = 13;
+  optional int64 OutRsts = 14;
+  optional int64 InCsumErrors = 15;
+}
+
+
+message UdpStatistics {
+  optional int64 InDatagrams = 1;
+  optional int64 NoPorts = 2;
+  optional int64 InErrors = 3;
+  optional int64 OutDatagrams = 4;
+  optional int64 RcvbufErrors = 5;
+  optional int64 SndbufErrors = 6;
+  optional int64 InCsumErrors = 7;
+  optional int64 IgnoredMulti = 8;
+}
+
+
+message SNMPStatistics {
+  optional IpStatistics ip_stats = 1;
+  optional IcmpStatistics icmp_stats = 2;
+  optional TcpStatistics tcp_stats = 3;
+  optional UdpStatistics udp_stats = 4;
+}
+
+
 /**
  * A snapshot of resource usage statistics.
  */
@@ -816,6 +942,9 @@ message ResourceStatistics {
   // or dropped due to congestion or policy inside and outside the
   // container.
   repeated TrafficControlStatistics net_traffic_control_statistics = 35;
+
+  // Network SNMP statistics for each container.
+  optional SNMPStatistics net_snmp_statistics = 42;
 }
 
 
@@ -1033,7 +1162,7 @@ message InverseOffer {
   // For reserved resources, the resources are expected to be returned to the
   // framework after the unavailability interval.  This is an expectation,
   // not a guarantee.  For example, if the unavailability duration is not set,
-  // the resources may be removed permenantly.
+  // the resources may be removed permanently.
   //
   // For other resources, there is no guarantee that requested resources will
   // be returned after the unavailability interval.  The allocator has no
@@ -1080,6 +1209,7 @@ message TaskInfo {
   // acted upon by Mesos itself. As opposed to the data field, labels
   // will be kept in memory on master and agent processes. Therefore,
   // labels should be used to tag tasks with light-weight meta-data.
+  // Labels should not contain duplicate key-value pairs.
   optional Labels labels = 10;
 
   // Service discovery information for the task. It is not interpreted
@@ -1098,14 +1228,19 @@ message TaskInfo {
  * another task).
  */
 enum TaskState {
-  TASK_STAGING = 6; // Initial state. Framework status updates should not use.
-  TASK_STARTING = 0;
+  TASK_STAGING = 6;  // Initial state. Framework status updates should not use.
+  TASK_STARTING = 0; // The task is being launched by the executor.
   TASK_RUNNING = 1;
-  TASK_FINISHED = 2; // TERMINAL. The task finished successfully.
-  TASK_FAILED = 3; // TERMINAL. The task failed to finish successfully.
-  TASK_KILLED = 4; // TERMINAL. The task was killed by the executor.
-  TASK_LOST = 5; // TERMINAL. The task failed but can be rescheduled.
-  TASK_ERROR = 7; // TERMINAL. The task description contains an error.
+
+  // NOTE: This should only be sent when the framework has
+  // the TASK_KILLING_STATE capability.
+  TASK_KILLING = 8;  // The task is being killed by the executor.
+
+  TASK_FINISHED = 2; // TERMINAL: The task finished successfully.
+  TASK_FAILED = 3;   // TERMINAL: The task failed to finish successfully.
+  TASK_KILLED = 4;   // TERMINAL: The task was killed by the executor.
+  TASK_LOST = 5;     // TERMINAL: The task failed but can be rescheduled.
+  TASK_ERROR = 7;    // TERMINAL: The task description contains an error.
 }
 
 
@@ -1187,7 +1322,7 @@ message TaskStatus {
   // acted upon by Mesos itself. As opposed to the data field, labels
   // will be kept in memory on master and agent processes. Therefore,
   // labels should be used to tag TaskStatus message with light-weight
-  // meta-data.
+  // meta-data.  Labels should not contain duplicate key-value pairs.
   optional Labels labels = 12;
 
   // Container related information that is resolved dynamically such as
@@ -1392,8 +1527,8 @@ message Volume {
 
 
 /**
- * Describes a network request by framework as well as network resolution
- * provided by the executor or Agent.
+ * Describes a network request from a framework as well as network resolution
+ * provided by Mesos.
  *
  * A framework may request the network isolator on the Agent to isolate the
  * container in a network namespace and create a virtual network interface.
@@ -1402,10 +1537,10 @@ message Volume {
  * (network group membership).
  *
  * The NetworkInfo message is not interpreted by the Master or Agent and is
- * intended to be used by Agent modules implementing network isolation. If the
- * modules are missing, the message is simply ignored. In future, the task
- * launch will fail if there is no module providing the network isolation
- * capabilities (MESOS-3390).
+ * intended to be used by Agent and Master modules implementing network
+ * isolation. If the modules are missing, the message is simply ignored. In
+ * future, the task launch will fail if there is no module providing the
+ * network isolation capabilities (MESOS-3390).
  *
  * An executor, Agent, or an Agent module may append NetworkInfos inside
  * TaskStatus::container_status to provide information such as the container IP
@@ -1417,7 +1552,7 @@ message NetworkInfo {
     IPv6 = 2;
   }
 
-  // Specifies either a request for an IP address, or the actual assigned
+  // Specifies a request for an IP address, or reports the assigned container
   // IP address.
   //
   // Users can request an automatically assigned IP (for example, via an
@@ -1545,17 +1680,39 @@ message ContainerInfo {
 
 
 /**
- * Container related information that is resolved during container setup. The
- * information is sent back to the framework as part of the TaskStatus message.
+ * Container related information that is resolved during container
+ * setup. The information is sent back to the framework as part of the
+ * TaskStatus message.
  */
 message ContainerStatus {
   // This field can be reliably used to identify the container IP address.
   repeated NetworkInfo network_infos = 1;
+
+  // Information about Linux control group (cgroup).
+  optional CgroupInfo cgroup_info = 2;
 }
 
 
 /**
- * Collection of labels.
+ * Linux control group (cgroup) information.
+ */
+message CgroupInfo {
+  // Configuration of a net_cls cgroup subsystem.
+  message NetCls {
+    // The 32-bit classid consists of two parts, a 16 bit major handle
+    // and a 16-bit minor handle. The major and minor handle are
+    // represented using the format 0xAAAABBBB, where 0xAAAA is the
+    // 16-bit major handle and 0xBBBB is the 16-bit minor handle.
+    optional uint32 classid = 1;
+  }
+
+  optional NetCls net_cls = 1;
+}
+
+
+/**
+ * Collection of labels. Labels should not contain duplicate key-value
+ * pairs.
  */
 message Labels {
   repeated Label labels = 1;
@@ -1628,4 +1785,16 @@ message DiscoveryInfo {
   optional string version = 5;
   optional Ports ports = 6;
   optional Labels labels = 7;
+}
+
+
+/**
+ * Named WeightInfo to indicate resource allocation
+ * priority between the different roles.
+ */
+message WeightInfo {
+  required double weight = 1;
+
+  // Related role name.
+  optional string role = 2;
 }

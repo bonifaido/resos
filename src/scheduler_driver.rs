@@ -361,7 +361,6 @@ impl <S: Scheduler + Sync + Send + 'static> SchedulerDriver for MesosSchedulerDr
                 call.set_field_type(Call_Type::SUBSCRIBE);
                 let mut subscribe = Call_Subscribe::new();
                 subscribe.set_framework_info(internal.framework.clone());
-                subscribe.set_force(true);
                 call.set_subscribe(subscribe);
                 let master = internal.master_detector.master().unwrap();
                 try!(internal.http_api.subscribe(&master, call, self.clone()).map_err(Error::HttpApi));

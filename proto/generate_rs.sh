@@ -4,7 +4,7 @@ brew install protobuf
 cargo install protobuf
 
 PATH="$HOME/.cargo/bin:$PATH"
-VERSION=0.27.0
+VERSION=0.28.1
 
 cd proto/mesos/v1
 curl -O https://raw.githubusercontent.com/apache/mesos/$VERSION/include/mesos/v1/mesos.proto
