@@ -1,6 +1,6 @@
 use http_api;
 use http_api::{HttpApi, HttpHandler};
-use master_detector::MasterDetector;
+use master_detector::{MasterDetector, ZkMasterDetector};
 use proto::{AgentID,
             ExecutorID,
             Filters,
@@ -36,7 +36,6 @@ use scheduler::Scheduler;
 use std::sync::{Arc, Barrier, Mutex};
 use std::time::Duration;
 use std::thread;
-use zookeeper::ZkError;
 
 /// Abstract interface for connecting a scheduler to Mesos. This
 /// interface is used both to manage the scheduler's lifecycle (start
@@ -218,22 +217,22 @@ impl <S> Clone for MesosSchedulerDriver<S> {
 
 struct DriverInternal {
     http_api: HttpApi,
-    master_detector: MasterDetector,
+    master_detector: Arc<MasterDetector + Send + Sync>,
     framework: FrameworkInfo,
     status: Status
 }
 
 impl DriverInternal {
     fn send_master(&self, msg: &Message) -> Result<()> {
-        let master = try!(self.master_detector.master().map_err(Error::Zk));
-        try!(self.http_api.send(&master, msg).map_err(Error::HttpApi));
+        let master = try!(self.master_detector.get_master().map_err(Error::MasterDetector));
+        try!(self.http_api.send(master.address(), msg).map_err(Error::HttpApi));
         Ok(())
     }
 }
 
 #[derive(Debug)]
 pub enum Error {
-    Zk(ZkError),
+    MasterDetector(String),
     HttpApi(http_api::Error)
 }
 
@@ -247,13 +246,15 @@ impl <S: Scheduler + Sync + Send + 'static> MesosSchedulerDriver<S> {
 
         let http_api = try!(HttpApi::new("/api/v1/scheduler").map_err(Error::HttpApi));
 
-        assert!(master.starts_with("zk://"), "Only zk masters are allowed");
-
-        let master_detector = try!(MasterDetector::new(&master[5..]).map_err(Error::Zk));
+        let master_detector = if master.starts_with("zk://") {
+            try!(ZkMasterDetector::new(&master[5..]).map_err(Error::MasterDetector))
+        } else {
+            panic!("Not supported");
+        };
 
         let internal = DriverInternal{
             http_api: http_api,
-            master_detector: master_detector,
+            master_detector: Arc::new(master_detector),
             framework: framework,
             status: Status::DRIVER_NOT_STARTED
         };
@@ -354,16 +355,14 @@ impl <S: Scheduler + Sync + Send + 'static> SchedulerDriver for MesosSchedulerDr
         let status = {
             let mut internal = self.internal.lock().unwrap();
             if internal.status == Status::DRIVER_NOT_STARTED {
-                internal.master_detector.start();
-                let master = try!(internal.master_detector.master().map_err(Error::Zk));
-                debug!("Registering with master {}", master);
+                let master = try!(internal.master_detector.get_master().map_err(Error::MasterDetector));
+                debug!("Registering with master {}", master.address());
                 let mut call = Call::new();
                 call.set_field_type(Call_Type::SUBSCRIBE);
                 let mut subscribe = Call_Subscribe::new();
                 subscribe.set_framework_info(internal.framework.clone());
                 call.set_subscribe(subscribe);
-                let master = internal.master_detector.master().unwrap();
-                try!(internal.http_api.subscribe(&master, call, self.clone()).map_err(Error::HttpApi));
+                try!(internal.http_api.subscribe(master.address(), call, self.clone()).map_err(Error::HttpApi));
                 internal.status = Status::DRIVER_RUNNING;
             }
             internal.status

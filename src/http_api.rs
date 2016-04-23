@@ -40,7 +40,7 @@ impl HttpApi {
     }
 
     pub fn send(&self,
-                to: &String,
+                to: &str,
                 message: &protobuf::Message) -> Result<()> {
         match self.send_internal(to, message) {
             Ok(hyper::client::Response{status: StatusCode::Accepted, ..}) => Ok(()),
@@ -50,7 +50,7 @@ impl HttpApi {
     }
 
     fn send_internal(&self,
-                     to: &String,
+                     to: &str,
                      message: &protobuf::Message) -> Result<hyper::client::Response> {
 
         //info!("Fields {:?}", message.descriptor().fields().iter().map(|f| f.name()).collect::<Vec<&str>>());
@@ -74,7 +74,7 @@ impl HttpApi {
     }
 
     pub fn subscribe<Subscribe, Event, Handler>(&self,
-                                                to: &String,
+                                                to: &str,
                                                 subscribe: Subscribe,
                                                 handler: Handler)-> Result<()>
     where Subscribe: protobuf::MessageStatic,

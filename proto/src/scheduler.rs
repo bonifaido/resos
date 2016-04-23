@@ -2335,7 +2335,7 @@ impl Call {
     pub fn mut_accept<'a>(&'a mut self) -> &'a mut Call_Accept {
         if self.accept.is_none() {
             self.accept.set_default();
-        };
+        }
         self.accept.as_mut().unwrap()
     }
 

@@ -1,49 +1,50 @@
 use rustc_serialize::json;
-use zookeeper::{Watcher, WatchedEvent, ZkError, ZkResult, ZooKeeper};
-use std::str::FromStr;
+use zookeeper::{Watcher, WatchedEvent, ZooKeeper};
 use std::time::Duration;
 
 static ZK_SESSION_TIMEOUT: u64 = 10000;
 static MASTER_INFO_JSON_LABEL: &'static str = "json.info";
 
 #[derive(RustcDecodable)]
-struct MasterInfo {
+pub struct MasterInfo {
     pid: String
 }
 
-struct MasterDetectorWatcher;
+impl MasterInfo {
+    pub fn address(&self) -> &str {
+        self.pid.split('@').last().unwrap()
+    }
+}
 
-impl Watcher for MasterDetectorWatcher {
+struct ZkMasterDetectorWatcher;
+
+impl Watcher for ZkMasterDetectorWatcher {
     fn handle(&self, e: &WatchedEvent) {
         debug!("{:?}", e);
     }
 }
 
-pub struct MasterDetector {
-    zk: ZooKeeper,
-    master: Option<String>
+pub trait MasterDetector {
+    fn get_master(&self) -> Result<MasterInfo, String>;
 }
 
-impl MasterDetector {
-    pub fn new(connect_string: &str) -> ZkResult<MasterDetector> {
+pub struct ZkMasterDetector {
+    zk: ZooKeeper
+}
+
+impl ZkMasterDetector {
+    pub fn new(connect_string: &str) -> Result<ZkMasterDetector, String> {
         let zk = try!(ZooKeeper::connect(connect_string,
                                          Duration::from_secs(ZK_SESSION_TIMEOUT),
-                                         MasterDetectorWatcher));
-        Ok(MasterDetector{zk: zk, master: None})
+                                         ZkMasterDetectorWatcher).map_err(|_| "connect".to_string()));
+        Ok(ZkMasterDetector{zk: zk})
     }
+}
 
-    pub fn start(&mut self) {
-        match self.get_master() {
-            Ok(master_info) => {
-                let address = master_info.pid.split('@').last().unwrap();
-                self.master = Some(FromStr::from_str(address).unwrap())
-            },
-            Err(e) => error!("Failed to find leader in ZK: {:?}", e)
-        }
-    }
+impl MasterDetector for ZkMasterDetector {
 
-    fn get_master(&self) -> ZkResult<MasterInfo> {
-        let children = try!(self.zk.get_children("/", true));
+    fn get_master(&self) -> Result<MasterInfo, String> {
+        let children = try!(self.zk.get_children("/", true).map_err(|_| "get_children".to_string()));
 
         let mut contenders: Vec<&String> = children
                                             .iter()
@@ -56,23 +57,16 @@ impl MasterDetector {
         match contenders.first() {
             Some(leader) => {
                 let leader_path = "/".to_string() + leader;
-                let (data, _acl) = try!(self.zk.get_data(&leader_path, true));
+                let (data, _acl) = try!(self.zk.get_data(&leader_path, true).map_err(|_| "get_children".to_string()));
                 match String::from_utf8(data) {
                     Ok(json) => match json::decode(&json) {
                         Ok(master_info) => Ok(master_info),
-                        Err(_) => Err(ZkError::MarshallingError)
+                        Err(_) => Err("ZkError::MarshallingError".to_string())
                     },
-                    Err(_) => Err(ZkError::MarshallingError)
+                    Err(_) => Err("ZkError::MarshallingError".to_string())
                 }
             }
-            None => Err(ZkError::NoNode)
-        }
-    }
-
-    pub fn master(&self) -> ZkResult<String> {
-        match self.master {
-            Some(ref master) => Ok(master.clone()),
-            None => Err(ZkError::NoNode)
+            None => Err("ZkError::NoNode".to_string())
         }
     }
 }

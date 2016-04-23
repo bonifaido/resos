@@ -98,7 +98,8 @@ fn main() {
     env_logger::init().unwrap();
 
     let scheduler = MyScheduler;
-    let master = "zk://localhost:2181/mesos";
+//    let master = "zk://localhost:2181/mesos";
+    let master = "localhost:5050";
     let mut framework = FrameworkInfo::new();
 
     let user_name = env::var("USER").unwrap();
