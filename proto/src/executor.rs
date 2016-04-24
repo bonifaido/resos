@@ -25,6 +25,9 @@ pub struct Event {
     cached_size: ::std::cell::Cell<u32>,
 }
 
+// see codegen.rs for the explanation why impl Sync explicitly
+unsafe impl ::std::marker::Sync for Event {}
+
 impl Event {
     pub fn new() -> Event {
         ::std::default::Default::default()
@@ -284,7 +287,7 @@ impl ::protobuf::Message for Event {
             match field_number {
                 1 => {
                     if wire_type != ::protobuf::wire_format::WireTypeVarint {
-                        return ::std::result::Result::Err(::protobuf::ProtobufError::WireError("unexpected wire type".to_string()));
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
                     };
                     let tmp = try!(is.read_enum());
                     self.field_type = ::std::option::Option::Some(tmp);
@@ -514,6 +517,9 @@ pub struct Event_Subscribed {
     unknown_fields: ::protobuf::UnknownFields,
     cached_size: ::std::cell::Cell<u32>,
 }
+
+// see codegen.rs for the explanation why impl Sync explicitly
+unsafe impl ::std::marker::Sync for Event_Subscribed {}
 
 impl Event_Subscribed {
     pub fn new() -> Event_Subscribed {
@@ -810,6 +816,9 @@ pub struct Event_Launch {
     cached_size: ::std::cell::Cell<u32>,
 }
 
+// see codegen.rs for the explanation why impl Sync explicitly
+unsafe impl ::std::marker::Sync for Event_Launch {}
+
 impl Event_Launch {
     pub fn new() -> Event_Launch {
         ::std::default::Default::default()
@@ -992,6 +1001,9 @@ pub struct Event_Kill {
     unknown_fields: ::protobuf::UnknownFields,
     cached_size: ::std::cell::Cell<u32>,
 }
+
+// see codegen.rs for the explanation why impl Sync explicitly
+unsafe impl ::std::marker::Sync for Event_Kill {}
 
 impl Event_Kill {
     pub fn new() -> Event_Kill {
@@ -1176,6 +1188,9 @@ pub struct Event_Acknowledged {
     unknown_fields: ::protobuf::UnknownFields,
     cached_size: ::std::cell::Cell<u32>,
 }
+
+// see codegen.rs for the explanation why impl Sync explicitly
+unsafe impl ::std::marker::Sync for Event_Acknowledged {}
 
 impl Event_Acknowledged {
     pub fn new() -> Event_Acknowledged {
@@ -1416,6 +1431,9 @@ pub struct Event_Message {
     cached_size: ::std::cell::Cell<u32>,
 }
 
+// see codegen.rs for the explanation why impl Sync explicitly
+unsafe impl ::std::marker::Sync for Event_Message {}
+
 impl Event_Message {
     pub fn new() -> Event_Message {
         ::std::default::Default::default()
@@ -1598,6 +1616,9 @@ pub struct Event_Error {
     unknown_fields: ::protobuf::UnknownFields,
     cached_size: ::std::cell::Cell<u32>,
 }
+
+// see codegen.rs for the explanation why impl Sync explicitly
+unsafe impl ::std::marker::Sync for Event_Error {}
 
 impl Event_Error {
     pub fn new() -> Event_Error {
@@ -1845,6 +1866,9 @@ pub struct Call {
     cached_size: ::std::cell::Cell<u32>,
 }
 
+// see codegen.rs for the explanation why impl Sync explicitly
+unsafe impl ::std::marker::Sync for Call {}
+
 impl Call {
     pub fn new() -> Call {
         ::std::default::Default::default()
@@ -2082,7 +2106,7 @@ impl ::protobuf::Message for Call {
                 },
                 3 => {
                     if wire_type != ::protobuf::wire_format::WireTypeVarint {
-                        return ::std::result::Result::Err(::protobuf::ProtobufError::WireError("unexpected wire type".to_string()));
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
                     };
                     let tmp = try!(is.read_enum());
                     self.field_type = ::std::option::Option::Some(tmp);
@@ -2286,6 +2310,9 @@ pub struct Call_Subscribe {
     unknown_fields: ::protobuf::UnknownFields,
     cached_size: ::std::cell::Cell<u32>,
 }
+
+// see codegen.rs for the explanation why impl Sync explicitly
+unsafe impl ::std::marker::Sync for Call_Subscribe {}
 
 impl Call_Subscribe {
     pub fn new() -> Call_Subscribe {
@@ -2502,6 +2529,9 @@ pub struct Call_Update {
     cached_size: ::std::cell::Cell<u32>,
 }
 
+// see codegen.rs for the explanation why impl Sync explicitly
+unsafe impl ::std::marker::Sync for Call_Update {}
+
 impl Call_Update {
     pub fn new() -> Call_Update {
         ::std::default::Default::default()
@@ -2684,6 +2714,9 @@ pub struct Call_Message {
     unknown_fields: ::protobuf::UnknownFields,
     cached_size: ::std::cell::Cell<u32>,
 }
+
+// see codegen.rs for the explanation why impl Sync explicitly
+unsafe impl ::std::marker::Sync for Call_Message {}
 
 impl Call_Message {
     pub fn new() -> Call_Message {
