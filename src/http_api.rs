@@ -8,6 +8,8 @@ use std::thread::spawn;
 
 const PROTOBUF: &'static str = "application/x-protobuf";
 
+header! { (MesosStreamId, "Mesos-Stream-Id") => [String] }
+
 lazy_static! {
     static ref AcceptProtobuf: Accept = Accept(vec![qitem(PROTOBUF.parse().unwrap())]);
     static ref ContentTypeProtobuf: ContentType = ContentType(PROTOBUF.parse().unwrap());
@@ -25,6 +27,7 @@ pub type Result<T> = ::std::result::Result<T, Error>;
 pub struct HttpApi {
     http_client: hyper::Client,
     endpoint: String,
+    mesos_stream_id: Option<MesosStreamId>
 }
 
 pub trait HttpHandler<Event: protobuf::MessageStatic> {
@@ -36,7 +39,7 @@ impl HttpApi {
     pub fn new(endpoint: &str) -> Result<Self> {
         let http_client = hyper::Client::new();
 
-        Ok(HttpApi{http_client: http_client, endpoint: endpoint.to_string()})
+        Ok(HttpApi{http_client: http_client, endpoint: endpoint.to_string(), mesos_stream_id: None})
     }
 
     pub fn send(&self,
@@ -63,6 +66,9 @@ impl HttpApi {
         let mut headers = Headers::new();
         headers.set(AcceptProtobuf.clone());
         headers.set(ContentTypeProtobuf.clone());
+        if let Some(ref mesos_stream_id) = self.mesos_stream_id {
+            headers.set(mesos_stream_id.clone());
+        }
 
         let data = try!(message.write_to_bytes().map_err(Error::Serialization));
 
@@ -73,7 +79,7 @@ impl HttpApi {
                         .map_err(Error::Io)
     }
 
-    pub fn subscribe<Subscribe, Event, Handler>(&self,
+    pub fn subscribe<Subscribe, Event, Handler>(&mut self,
                                                 to: &str,
                                                 subscribe: Subscribe,
                                                 handler: Handler)-> Result<()>
@@ -81,10 +87,15 @@ impl HttpApi {
           Event: protobuf::MessageStatic,
           Handler: HttpHandler<Event> + Send + 'static {
 
-        let resp = try!(self.send_internal(to, &subscribe));
-        if resp.status == StatusCode::Ok {
+        let response = try!(self.send_internal(to, &subscribe));
+
+        if response.status == StatusCode::Ok {            
+            if let Some(mesos_stream_id) = response.headers.get::<MesosStreamId>() {
+                info!("Mesos-Stream-Id {}", mesos_stream_id);
+                self.mesos_stream_id = Some(mesos_stream_id.clone());
+            }            
             spawn(move || {
-                let mut stream = BufReader::new(resp);
+                let mut stream = BufReader::new(response);
                 loop {
                     match stream.read_message::<Event>() {
                         Ok(event) => handler.on_event(event),
@@ -94,7 +105,7 @@ impl HttpApi {
             });
             Ok(())
         } else {
-            Err(Error::Status(resp.status, format!("{:?}", resp)))
+            Err(Error::Status(response.status, format!("{:?}", response)))
         }
     }
 }

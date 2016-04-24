@@ -112,5 +112,7 @@ fn main() {
 
     driver.start().unwrap();
 
+    std::thread::sleep(std::time::Duration::from_secs(1000000));
+
     driver.stop(false).unwrap();
 }
