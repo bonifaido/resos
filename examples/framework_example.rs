@@ -45,8 +45,11 @@ impl Scheduler for MyScheduler {
     // Invoked when resources have been offered to this framework.
     fn resource_offers(&self, driver: &SchedulerDriver, offers: &Vec<Offer>) {
         info!("Resources offered: {:?} offer", offers.len());
-
+        
         for offer in offers {
+            info!("Preparing tasks for offer: {:?}", offer);
+            std::thread::sleep(std::time::Duration::from_secs(2));
+
             let mut task_id = TaskID::new();
             task_id.set_value(uuid::Uuid::new_v4().to_string());
 
@@ -98,7 +101,8 @@ fn main() {
     env_logger::init().unwrap();
 
     let scheduler = MyScheduler;
-    let master = "zk://localhost:2181/mesos";
+//    let master = "zk://localhost:2181/mesos";
+    let master = "localhost:5050";
     let mut framework = FrameworkInfo::new();
 
     let user_name = env::var("USER").unwrap();
@@ -110,6 +114,8 @@ fn main() {
     let mut driver = MesosSchedulerDriver::new(scheduler, framework, master).unwrap();
 
     driver.start().unwrap();
+
+    std::thread::sleep(std::time::Duration::from_secs(1000000));
 
     driver.stop(false).unwrap();
 }
