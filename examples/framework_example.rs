@@ -45,8 +45,11 @@ impl Scheduler for MyScheduler {
     // Invoked when resources have been offered to this framework.
     fn resource_offers(&self, driver: &SchedulerDriver, offers: &Vec<Offer>) {
         info!("Resources offered: {:?} offer", offers.len());
-
+        
         for offer in offers {
+            info!("Preparing tasks for offer: {:?}", offer);
+            std::thread::sleep(std::time::Duration::from_secs(2));
+
             let mut task_id = TaskID::new();
             task_id.set_value(uuid::Uuid::new_v4().to_string());
 
